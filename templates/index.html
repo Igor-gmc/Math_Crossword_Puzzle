@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Математический кроссворд</title>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.0/dist/dom-to-image-more.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .controls {
+            max-width: 700px;
+            margin: 30px auto;
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .controls h1 {
+            font-size: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group .range-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .form-group input[type="range"] {
+            flex: 1;
+            accent-color: #4f46e5;
+        }
+
+        .form-group .range-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #4f46e5;
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #4f46e5;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+        .btn-secondary:hover { background: #d1d5db; }
+
+        .btn-answer {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .btn-answer:hover { background: #d97706; }
+
+        .status {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* Crossword display area */
+        #crossword-wrapper {
+            display: none;
+            margin: 30px auto;
+            max-width: 1100px;
+        }
+
+        .print-buttons {
+            text-align: center;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        #crossword-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: auto;
+        }
+
+        .crossword-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        #crossword-info {
+            text-align: center;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .grid-center {
+            text-align: center;
+        }
+
+        #crossword-grid {
+            display: inline-grid;
+            gap: 0;
+            margin: 0 auto;
+        }
+
+        .cell {
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            background: #fff;
+        }
+
+        .cell-empty {
+            border: none;
+            background: transparent;
+        }
+
+        .cell-hidden {
+            background: #dbeafe;
+        }
+
+        .cell-hidden.show-answers {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .cell-operator {
+            font-weight: 700;
+            color: #333;
+            background: #f9fafb;
+        }
+
+        /* Answer key section */
+        #answer-key {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            background: #fffbeb;
+            border-radius: 8px;
+            border: 2px dashed #f59e0b;
+        }
+
+        #answer-key h3 {
+            margin-bottom: 12px;
+            color: #92400e;
+        }
+
+        #answer-key .equations-list {
+            columns: 2;
+            column-gap: 24px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        /* Print styles */
+        @media print {
+            body { background: #fff; }
+
+            .controls, .print-buttons, #crossword-info, #answer-key {
+                display: none !important;
+            }
+
+            #crossword-wrapper {
+                display: block !important;
+                margin: 0;
+                max-width: 100%;
+            }
+
+            #crossword-container {
+                box-shadow: none;
+                padding: 5mm;
+                border-radius: 0;
+            }
+
+            .crossword-title {
+                font-size: 18pt;
+                margin-bottom: 10mm;
+            }
+
+            .cell {
+                border: 1.5px solid #000;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .cell-empty {
+                border: none;
+            }
+
+            .cell-hidden {
+                background: #dbeafe !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .cell-hidden.show-answers {
+                background: #fef3c7 !important;
+            }
+
+            .cell-operator {
+                background: #f5f5f5 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <h1>Математический кроссворд</h1>
+
+    <div class="form-group">
+        <label>Количество уравнений: <span id="count-value" class="range-value">15</span></label>
+        <div class="range-row">
+            <span>10</span>
+            <input type="range" id="count" min="10" max="50" value="15">
+            <span>50</span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Диапазон чисел: от 1 до <span id="range-value" class="range-value">20</span></label>
+        <div class="range-row">
+            <span>1</span>
+            <input type="range" id="num-range" min="5" max="100" value="20">
+            <span>100</span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Операции:</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="op-add" checked> Сложение (+)</label>
+            <label><input type="checkbox" id="op-sub" checked> Вычитание (&minus;)</label>
+            <label><input type="checkbox" id="op-mul"> Умножение (&times;)</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Покрытие цифрами: <span id="fill-value" class="range-value">50%</span></label>
+        <div class="range-row">
+            <span>10%</span>
+            <input type="range" id="fill-percent" min="10" max="80" value="50" step="5">
+            <span>80%</span>
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn btn-primary" id="generate-btn" onclick="generateCrossword()">Сгенерировать</button>
+        <button class="btn btn-answer" id="answer-btn" onclick="toggleAnswers()" style="display:none;">Показать ответы</button>
+        <button class="btn btn-secondary" id="pdf-btn" onclick="downloadPDF()" style="display:none;">Скачать PDF</button>
+    </div>
+
+    <div class="status" id="status"></div>
+</div>
+
+<div id="crossword-wrapper">
+    <div class="print-buttons">
+        <button class="btn btn-secondary" onclick="window.print()">Распечатать кроссворд</button>
+    </div>
+    <div id="crossword-container">
+        <div class="crossword-title">Математический кроссворд</div>
+        <div id="crossword-info"></div>
+        <div class="grid-center">
+            <div id="crossword-grid"></div>
+        </div>
+        <div id="answer-key">
+            <h3>Ответы:</h3>
+            <div class="equations-list" id="equations-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const countSlider = document.getElementById('count');
+    const rangeSlider = document.getElementById('num-range');
+    const fillSlider = document.getElementById('fill-percent');
+    const countValue = document.getElementById('count-value');
+    const rangeValue = document.getElementById('range-value');
+    const fillValue = document.getElementById('fill-value');
+
+    let currentData = null;
+    let answersVisible = false;
+
+    countSlider.addEventListener('input', () => {
+        countValue.textContent = countSlider.value;
+    });
+    rangeSlider.addEventListener('input', () => {
+        rangeValue.textContent = rangeSlider.value;
+    });
+    fillSlider.addEventListener('input', () => {
+        fillValue.textContent = fillSlider.value + '%';
+    });
+
+    async function generateCrossword() {
+        const btn = document.getElementById('generate-btn');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        status.textContent = 'Генерация кроссворда...';
+        answersVisible = false;
+        document.getElementById('answer-btn').style.display = 'none';
+
+        const operations = [];
+        if (document.getElementById('op-add').checked) operations.push('+');
+        if (document.getElementById('op-sub').checked) operations.push('-');
+        if (document.getElementById('op-mul').checked) operations.push('*');
+
+        if (operations.length === 0) {
+            status.textContent = 'Выберите хотя бы одну операцию!';
+            btn.disabled = false;
+            return;
+        }
+
+        const payload = {
+            count: parseInt(countSlider.value),
+            num_range: parseInt(rangeSlider.value),
+            operations: operations,
+            fill_percent: parseInt(fillSlider.value),
+        };
+
+        try {
+            const resp = await fetch('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            currentData = await resp.json();
+            renderCrossword(currentData, false);
+            status.textContent = `Создано уравнений: ${currentData.total_equations}. Сетка: ${currentData.bounds.rows}\u00d7${currentData.bounds.cols}`;
+            document.getElementById('answer-btn').style.display = '';
+            document.getElementById('answer-btn').textContent = 'Показать ответы';
+            document.getElementById('pdf-btn').style.display = '';
+        } catch (err) {
+            status.textContent = 'Ошибка: ' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function toggleAnswers() {
+        answersVisible = !answersVisible;
+        const btn = document.getElementById('answer-btn');
+        btn.textContent = answersVisible ? 'Скрыть ответы' : 'Показать ответы';
+
+        document.querySelectorAll('.cell-hidden').forEach(el => {
+            el.classList.toggle('show-answers', answersVisible);
+            el.textContent = answersVisible ? el.dataset.answer : '';
+        });
+
+        const answerKey = document.getElementById('answer-key');
+        answerKey.style.display = answersVisible ? 'block' : 'none';
+    }
+
+    async function downloadPDF() {
+        const btn = document.getElementById('pdf-btn');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        btn.textContent = 'Генерация PDF...';
+        status.textContent = '';
+
+        const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (typeof domtoimage === 'undefined' || !jsPDFCtor) {
+            status.textContent = 'Ошибка: библиотеки не загружены. Проверьте интернет-соединение.';
+            btn.disabled = false;
+            btn.textContent = 'Скачать PDF';
+            return;
+        }
+
+        const element = document.getElementById('crossword-container');
+
+        // Фиксируем ширину элемента под A4 (190мм = 718px, border-box)
+        const saved = {
+            width:        element.style.width,
+            overflow:     element.style.overflow,
+            borderRadius: element.style.borderRadius,
+            boxShadow:    element.style.boxShadow,
+        };
+        element.style.width        = '718px';
+        element.style.overflow     = 'visible';
+        element.style.borderRadius = '0';
+        element.style.boxShadow    = 'none';
+
+        try {
+            const dataUrl = await domtoimage.toJpeg(element, {
+                quality: 0.95,
+                bgcolor: '#ffffff',
+            });
+
+            // Размеры изображения для расчёта пропорций
+            const img = new Image();
+            await new Promise(resolve => { img.onload = resolve; img.src = dataUrl; });
+
+            const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const margin = 10;
+            const pageW  = 190;   // 210 - 2×10
+            const pageH  = 277;   // 297 - 2×10
+
+            // Вписываем по ширине; если высота не влезает — вписываем по высоте
+            let imgW = pageW;
+            let imgH = (img.naturalHeight / img.naturalWidth) * imgW;
+            if (imgH > pageH) {
+                imgH = pageH;
+                imgW = (img.naturalWidth / img.naturalHeight) * imgH;
+            }
+
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const date = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+            const time = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+            pdf.addImage(dataUrl, 'JPEG', margin, margin, imgW, imgH);
+            pdf.save(`кроссворд_${date}_${time}.pdf`);
+            status.textContent = 'PDF сохранён.';
+        } catch (err) {
+            status.textContent = 'Ошибка при создании PDF: ' + err.message;
+            console.error(err);
+        } finally {
+            element.style.width        = saved.width;
+            element.style.overflow     = saved.overflow;
+            element.style.borderRadius = saved.borderRadius;
+            element.style.boxShadow    = saved.boxShadow;
+            btn.disabled = false;
+            btn.textContent = 'Скачать PDF';
+        }
+    }
+
+    function renderCrossword(data, showAnswers) {
+        const wrapper = document.getElementById('crossword-wrapper');
+        const grid = document.getElementById('crossword-grid');
+        const info = document.getElementById('crossword-info');
+
+        wrapper.style.display = 'block';
+        grid.innerHTML = '';
+
+        const rows = data.bounds.rows;
+        const cols = data.bounds.cols;
+
+        // A4 portrait: content 190mm = 718px. Container padding 20px×2 = 40px.
+        // Grid must fit inside container inner area: 678px wide.
+        // Height: A4 content 277mm = 1046px minus container overhead (~106px) = 940px.
+        const maxGridWidth = 678;
+        const maxGridHeight = 940;
+        const cellByWidth = Math.floor(maxGridWidth / cols);
+        const cellByHeight = Math.floor(maxGridHeight / rows);
+        const cellSize = Math.max(24, Math.min(48, Math.min(cellByWidth, cellByHeight)));
+
+        grid.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+
+        // Build cell map
+        const cellMap = {};
+        for (const cell of data.cells) {
+            cellMap[`${cell.row},${cell.col}`] = cell;
+        }
+
+        // Font size adapts: smaller for multi-digit numbers in small cells
+        const baseFontSize = Math.max(11, cellSize - 18);
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const div = document.createElement('div');
+                div.style.width = cellSize + 'px';
+                div.style.height = cellSize + 'px';
+
+                const key = `${r},${c}`;
+                const cell = cellMap[key];
+
+                if (!cell) {
+                    div.className = 'cell cell-empty';
+                } else if (cell.is_hidden) {
+                    div.className = 'cell cell-hidden';
+                    div.dataset.answer = cell.value;
+                    if (showAnswers) {
+                        div.classList.add('show-answers');
+                        div.textContent = cell.value;
+                    }
+                    // Shrink font for long numbers
+                    const len = cell.value.length;
+                    div.style.fontSize = (len > 2 ? baseFontSize - 4 : len > 1 ? baseFontSize - 2 : baseFontSize) + 'px';
+                } else if (!cell.is_number) {
+                    div.className = 'cell cell-operator';
+                    div.style.fontSize = (baseFontSize + 6) + 'px';
+                    div.textContent = cell.value === '*' ? '\u00d7' : cell.value;
+                } else {
+                    div.className = 'cell';
+                    const len = cell.value.length;
+                    div.style.fontSize = (len > 2 ? baseFontSize - 4 : len > 1 ? baseFontSize - 2 : baseFontSize) + 'px';
+                    div.textContent = cell.value;
+                }
+
+                grid.appendChild(div);
+            }
+        }
+
+        info.textContent = `Уравнений: ${data.total_equations} | Размер сетки: ${rows}\u00d7${cols}`;
+
+        // Render answer key (equations list)
+        const eqList = document.getElementById('equations-list');
+        eqList.innerHTML = '';
+        if (data.equations) {
+            data.equations.forEach((eq, i) => {
+                const span = document.createElement('div');
+                let text = eq.equation.replace(/\*/g, '\u00d7');
+                span.textContent = `${i + 1}. ${text}`;
+                eqList.appendChild(span);
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
