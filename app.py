@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 from crossword import CrosswordGenerator
+from quota import consume_quota
 
 app = Flask(__name__)
+
+APP_SLUG = "math-crossword"
 
 
 @app.route('/')
@@ -11,6 +14,22 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate():
+    # Проверить и списать квоту
+    try:
+        allowed, quota = consume_quota(request, APP_SLUG, "generate")
+    except Exception:
+        # Платформа недоступна (локальная разработка) — пропустить
+        allowed, quota = True, {"remaining": -1, "limit": 0, "is_authenticated": False, "resets_in": 0}
+
+    if not allowed:
+        return jsonify({
+            "error": "limit_exceeded",
+            "remaining": 0,
+            "limit": quota["limit"],
+            "is_authenticated": quota["is_authenticated"],
+            "resets_in": quota["resets_in"],
+        }), 429
+
     data = request.get_json()
     target_count = int(data.get('count', 15))
     num_range = int(data.get('num_range', 20))
@@ -36,6 +55,7 @@ def generate():
         max_attempts=30,
     )
 
+    result["remaining"] = quota.get("remaining", -1)
     return jsonify(result)
 
 

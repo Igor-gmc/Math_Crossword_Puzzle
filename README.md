@@ -10,6 +10,8 @@
 - Просмотр ответов прямо в браузере
 - Экспорт в PDF (формат A4)
 - Печать из браузера
+- Система квот: ограничение количества генераций (5 для анонимных, 50 для зарегистрированных)
+- Кулдаун 3 секунды между генерациями
 
 ## Скриншот
 
@@ -38,13 +40,21 @@ python app.py
 
 ```
 Math_Crossword_Puzzle/
-├── app.py              # Flask-приложение, HTTP-маршруты
-├── crossword.py        # Алгоритм генерации кроссворда
-├── templates/
-│   └── index.html      # Интерфейс (однастраничное приложение)
-├── requirements.txt    # Зависимости Python
+├── app.py                    # Flask-приложение, HTTP-маршруты
+├── crossword.py              # Алгоритм генерации кроссворда
+├── quota.py                  # Клиент квот платформы
+├── requirements.txt          # Зависимости Python
 ├── Dockerfile
-└── docker-compose.yml
+├── docker-compose.yml        # Локальная разработка
+├── docker-compose.prod.yml   # Деплой на VPS (steforge.com)
+├── templates/
+│   └── index.html            # HTML-разметка
+└── static/
+    ├── style.css             # Стили
+    ├── app.js                # Клиентская логика
+    └── vendor/               # Локальные копии библиотек
+        ├── dom-to-image-more.min.js
+        └── jspdf.umd.min.js
 ```
 
 ## API
@@ -71,22 +81,44 @@ Math_Crossword_Puzzle/
 }
 ```
 
-Пример ответа:
+Пример ответа (успех):
 
 ```json
 {
   "cells": [
-    { "row": 0, "col": 0, "value": "5", "is_number": true, "is_hidden": false },
-    ...
+    { "row": 0, "col": 0, "value": "5", "is_number": true, "is_hidden": false }
   ],
   "equations": [
-    { "equation": "5 + 3 = 8", "row": 0, "col": 0, "direction": "H" },
-    ...
+    { "equation": "5 + 3 = 8", "row": 0, "col": 0, "direction": "H" }
   ],
   "bounds": { "rows": 14, "cols": 19 },
-  "total_equations": 20
+  "total_equations": 20,
+  "remaining": 42
 }
 ```
+
+Пример ответа (лимит исчерпан, HTTP 429):
+
+```json
+{
+  "error": "limit_exceeded",
+  "remaining": 0,
+  "limit": 50,
+  "is_authenticated": true,
+  "resets_in": 52340
+}
+```
+
+## Квоты
+
+На платформе `sys.steforge.com` действует система квот:
+
+| Тип пользователя     | Лимит | Сброс                          |
+|----------------------|-------|--------------------------------|
+| Анонимный            | 5     | Через 24 ч после первого действия |
+| Зарегистрированный   | 50    | Через 24 ч после первого действия |
+
+Локально (без платформы) квоты не применяются — запросы к quota API оборачиваются в `try/except` и пропускаются при недоступности.
 
 ## Алгоритм
 
@@ -100,16 +132,20 @@ Math_Crossword_Puzzle/
 
 | Компонент  | Стек                                     |
 |------------|------------------------------------------|
-| Backend    | Python 3.12, Flask 3.1.0                 |
+| Backend    | Python 3.12, Flask 3.1.0, httpx          |
 | Frontend   | Vanilla JS, HTML/CSS                     |
 | PDF        | jsPDF 2.5.1, dom-to-image-more 3.4.0    |
 | Deploy     | Docker, docker-compose                   |
+| Платформа  | sys.steforge.com (Nginx, CSP, квоты)     |
 
 ## Docker-команды
 
 ```bash
-# Запустить
+# Запустить (локальная разработка)
 docker compose up -d
+
+# Запустить (VPS)
+docker compose -f docker-compose.prod.yml up -d --build
 
 # Остановить
 docker compose down

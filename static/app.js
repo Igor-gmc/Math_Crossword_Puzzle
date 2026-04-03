@@ -83,11 +83,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+
+            if (resp.status === 429) {
+                var errData = await resp.json();
+                var hours = Math.ceil(errData.resets_in / 3600);
+                var quotaMsg = document.getElementById('quota-message');
+                if (!errData.is_authenticated) {
+                    quotaMsg.innerHTML =
+                        'Лимит ' + errData.limit + ' генераций исчерпан. ' +
+                        '<a href="/register">Зарегистрируйтесь</a> для 50 генераций в день. ' +
+                        'Или попробуйте через ' + hours + ' ч.';
+                } else {
+                    quotaMsg.textContent = 'Дневной лимит исчерпан. Попробуйте через ' + hours + ' ч.';
+                }
+                quotaMsg.classList.remove('hidden');
+                document.getElementById('quota-remaining').classList.add('hidden');
+                status.textContent = '';
+                startCooldown();
+                return;
+            }
+
             currentData = await resp.json();
             renderCrossword(currentData, false);
             status.textContent = 'Создано уравнений: ' + currentData.total_equations + '. Сетка: ' + currentData.bounds.rows + '\u00d7' + currentData.bounds.cols;
             document.getElementById('answer-btn').classList.remove('hidden');
             document.getElementById('pdf-btn').classList.remove('hidden');
+            document.getElementById('quota-message').classList.add('hidden');
+
+            var remainingEl = document.getElementById('quota-remaining');
+            if (currentData.remaining >= 0) {
+                remainingEl.textContent = 'Осталось генераций: ' + currentData.remaining;
+                remainingEl.classList.remove('hidden');
+            } else {
+                remainingEl.classList.add('hidden');
+            }
         } catch (err) {
             status.textContent = 'Ошибка: ' + err.message;
         } finally {
