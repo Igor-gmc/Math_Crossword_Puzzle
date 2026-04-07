@@ -1,8 +1,10 @@
 # quota.py — клиент квот платформы
+import os
 import httpx
 
-QUOTA_URL = "http://steforge-cabinet-api:8000/api/v1/internal/quota/consume"
-QUOTA_CHECK_URL = "http://steforge-cabinet-api:8000/api/v1/internal/quota/check"
+_BASE = os.environ.get("PLATFORM_API_URL", "http://platform-api:8000")
+QUOTA_URL = f"{_BASE}/api/v1/internal/quota/consume"
+QUOTA_CHECK_URL = f"{_BASE}/api/v1/internal/quota/check"
 
 
 def consume_quota(request, app_slug, action="default"):

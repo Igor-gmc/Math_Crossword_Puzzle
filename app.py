@@ -1,10 +1,17 @@
+import os
+
 from flask import Flask, render_template, request, jsonify
 from crossword import CrosswordGenerator
 from quota import consume_quota
 
 app = Flask(__name__)
 
-APP_SLUG = "math-crossword"
+APP_SLUG = os.environ.get("APP_SLUG", "math-crossword")
+
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"})
 
 
 @app.route('/')

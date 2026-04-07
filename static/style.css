@@ -15,6 +15,17 @@ body {
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
+.back-to-cabinet {
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #6b7280;
+    text-decoration: none;
+}
+.back-to-cabinet:hover {
+    color: #1e293b;
+}
+
 .controls h1 {
     font-size: 24px;
     margin-bottom: 24px;
@@ -251,7 +262,7 @@ body {
 @media print {
     body { background: #fff; }
 
-    .controls, .print-buttons, #crossword-info, #answer-key {
+    .controls, .print-buttons, #crossword-info, #answer-key, .back-to-cabinet {
         display: none !important;
     }
 
