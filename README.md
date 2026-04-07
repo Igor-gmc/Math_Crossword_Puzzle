@@ -19,22 +19,18 @@
 
 ## Быстрый старт
 
-### Через Docker (рекомендуется)
-
 ```bash
+# Через Docker
 docker compose up -d
-```
 
-Приложение будет доступно по адресу: **http://localhost:5000**
-
-### Локально (Python)
-
-```bash
+# Или локально
 python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
+
+Приложение будет доступно по адресу: **http://localhost:5000**
 
 ## Структура проекта
 
@@ -58,6 +54,14 @@ Math_Crossword_Puzzle/
 ```
 
 ## API
+
+### `GET /health`
+
+Проверка состояния приложения. Используется Traefik и Docker healthcheck.
+
+```json
+{"status": "ok"}
+```
 
 ### `POST /generate`
 
@@ -132,26 +136,47 @@ Math_Crossword_Puzzle/
 
 | Компонент  | Стек                                     |
 |------------|------------------------------------------|
-| Backend    | Python 3.12, Flask 3.1.0, httpx          |
-| Frontend   | Vanilla JS, HTML/CSS                     |
-| PDF        | jsPDF 2.5.1, dom-to-image-more 3.4.0    |
-| Deploy     | Docker, docker-compose                   |
-| Платформа  | sys.steforge.com (Nginx, CSP, квоты)     |
+| Backend    | Python 3.12, Flask 3.1.0, Gunicorn, httpx |
+| Frontend   | Vanilla JS, HTML/CSS                      |
+| PDF        | jsPDF 2.5.1, dom-to-image-more 3.4.0     |
+| Deploy     | Docker, docker-compose                    |
+| Платформа  | sys.steforge.com (Traefik, ForwardAuth, квоты) |
 
-## Docker-команды
+## Деплой
+
+### Локальная разработка
 
 ```bash
-# Запустить (локальная разработка)
+# Через Docker
 docker compose up -d
 
-# Запустить (VPS)
+# Или напрямую Python
+python app.py
+```
+
+Приложение будет доступно по адресу: **http://localhost:5000**
+
+### Продакшен (VPS sys.steforge.com)
+
+Приложение разворачивается на платформе через `docker-compose.prod.yml` с интеграцией:
+- **Traefik** — HTTPS, Let's Encrypt, маршрутизация по субдомену `math-crossword.sys.steforge.com`
+- **ForwardAuth** — авторизация через Keycloak / platform-api
+- **Healthcheck** — `GET /health` для мониторинга и маршрутизации
+- **Gunicorn** — WSGI-сервер (2 воркера)
+
+Переменные окружения для продакшена:
+
+| Переменная | Описание |
+|------------|----------|
+| `APP_ENV` | `production` |
+| `PLATFORM_API_URL` | `http://platform-api:8000` |
+| `SERVICE_TOKEN` | Shared secret для platform-api |
+| `APP_SLUG` | `math-crossword` |
+| `CALLER_MVP` | `math-crossword` |
+
+```bash
+# Запустить на VPS
 docker compose -f docker-compose.prod.yml up -d --build
-
-# Остановить
-docker compose down
-
-# Пересобрать и запустить
-docker compose down && docker compose build --no-cache && docker compose up -d
 
 # Логи
 docker logs Math_Crossword_Puzzle -f
